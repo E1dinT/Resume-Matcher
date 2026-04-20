@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Resume Matcher</title>
+    <style>
+        :root {
+            --bg: #f3f6fb;
+            --card: #ffffff;
+            --border: #e5e7eb;
+            --text: #111827;
+            --muted: #6b7280;
+            --blue: #2563eb;
+            --blue-dark: #1d4ed8;
+            --green-bg: #dcfce7;
+            --green-text: #166534;
+            --red-bg: #fee2e2;
+            --red-text: #991b1b;
+            --bar-bg: #e5e7eb;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 40px 20px;
+            font-family: Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .container {
+            max-width: 980px;
+            margin: 0 auto;
+            background: var(--card);
+            border-radius: 18px;
+            padding: 32px;
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: 36px;
+        }
+
+        .subtitle {
+            color: var(--muted);
+            margin: 0 0 24px;
+            line-height: 1.6;
+        }
+
+        label {
+            display: block;
+            margin: 18px 0 8px;
+            font-weight: bold;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 180px;
+            padding: 14px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-size: 15px;
+            line-height: 1.6;
+            resize: vertical;
+        }
+
+        button {
+            margin-top: 22px;
+            border: none;
+            background: var(--blue);
+            color: white;
+            padding: 12px 22px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover { background: var(--blue-dark); }
+
+        .loading, .error {
+            margin-top: 18px;
+            font-weight: bold;
+        }
+
+        .loading { color: var(--blue); }
+        .error { color: #b91c1c; }
+
+        .result-card {
+            margin-top: 26px;
+            padding: 26px;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: #fafafa;
+        }
+
+        .score-row {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .score-big {
+            font-size: 42px;
+            font-weight: 800;
+        }
+
+        .score-meta {
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+            margin: 20px 0 10px;
+        }
+
+        @media (max-width: 760px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+
+        .mini-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 16px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin: 0 0 12px;
+        }
+
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .tag {
+            padding: 8px 12px;
+            border-radius: 999px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .matched {
+            background: var(--green-bg);
+            color: var(--green-text);
+        }
+
+        .missing {
+            background: var(--red-bg);
+            color: var(--red-text);
+        }
+
+        .bar-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            margin: 12px 0 6px;
+        }
+
+        .bar {
+            height: 10px;
+            background: var(--bar-bg);
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .bar > div {
+            height: 100%;
+            background: var(--blue);
+        }
+
+        .summary {
+            line-height: 1.7;
+            color: #1f2937;
+        }
+
+        ul {
+            margin: 10px 0 0 18px;
+            line-height: 1.7;
+        }
+
+        .evidence-block {
+            margin-top: 14px;
+        }
+
+        .evidence-concept {
+            font-weight: 700;
+            margin: 14px 0 8px;
+        }
+
+        .evidence-line {
+            font-size: 14px;
+            color: #374151;
+            padding: 10px 12px;
+            border-left: 3px solid var(--blue);
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .small-muted {
+            color: var(--muted);
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Resume Matcher</h1>
+    <p class="subtitle">
+        Paste a resume and a job description to get a weighted match score, gap analysis,
+        and evidence-backed feedback instead of a shallow keyword overlap.
+    </p>
+
+    <label for="resume">Resume</label>
+    <textarea id="resume" placeholder="Paste your resume text here."></textarea>
+
+    <label for="jd">Job Description</label>
+    <textarea id="jd" placeholder="Paste the job description here."></textarea>
+
+    <button onclick="analyze()">Analyze</button>
+
+    <div id="status"></div>
+    <div id="result"></div>
+</div>
+
+<script>
+async function analyze() {
+    const resume = document.getElementById("resume").value.trim();
+    const jd = document.getElementById("jd").value.trim();
+    const status = document.getElementById("status");
+    const result = document.getElementById("result");
+
+    if (!resume || !jd) {
+        status.innerHTML = '<div class="error">Please fill in both fields.</div>';
+        result.innerHTML = "";
+        return;
+    }
+
+    status.innerHTML = '<div class="loading">Analyzing...</div>';
+    result.innerHTML = "";
+
+    try {
+        const response = await fetch("http://127.0.0.1:8000/analyze", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ resume, job_description: jd })
+        });
+
+        if (!response.ok) {
+            throw new Error("Request failed");
+        }
+
+        const data = await response.json();
+
+        const matchedHTML = data.matched_keywords.length
+            ? data.matched_keywords.map(item => `<span class="tag matched">${item}</span>`).join("")
+            : '<span class="small-muted">No strong matched concepts found.</span>';
+
+        const missingHTML = data.missing_keywords.length
+            ? data.missing_keywords.map(item => `<span class="tag missing">${item}</span>`).join("")
+            : '<span class="small-muted">No major gaps detected.</span>';
+
+        const suggestionsHTML = data.suggestions.map(item => `<li>${item}</li>`).join("");
+
+        const evidenceHTML = Object.entries(data.evidence).length
+            ? Object.entries(data.evidence).map(([concept, lines]) => `
+                <div class="evidence-concept">${concept}</div>
+                ${lines.length
+                    ? lines.map(line => `<div class="evidence-line">${line}</div>`).join("")
+                    : '<div class="small-muted">No direct evidence line surfaced.</div>'
+                }
+            `).join("")
+            : '<div class="small-muted">No evidence extracted yet.</div>';
+
+        result.innerHTML = `
+            <div class="result-card">
+                <div class="score-row">
+                    <div class="score-big">${data.score}/100</div>
+                    <div class="score-meta">
+                        <div><strong>Keyword fit:</strong> ${data.keyword_score}/100</div>
+                        <div><strong>Similarity:</strong> ${data.semantic_score}/100</div>
+                    </div>
+                </div>
+
+                <div class="grid">
+                    <div class="mini-card">
+                        <div class="section-title">Matched Concepts</div>
+                        <div class="tag-list">${matchedHTML}</div>
+                    </div>
+                    <div class="mini-card">
+                        <div class="section-title">Highest-Priority Gaps</div>
+                        <div class="tag-list">${missingHTML}</div>
+                    </div>
+                </div>
+
+                <div class="grid">
+                    <div class="mini-card">
+                        <div class="section-title">Score Breakdown</div>
+                        ${renderBar("Languages", data.breakdown.languages)}
+                        ${renderBar("Backend & Data", data.breakdown.backend_data)}
+                        ${renderBar("Infra & DevOps", data.breakdown.infra_devops)}
+                        ${renderBar("Professional Fit", data.breakdown.professional)}
+                    </div>
+                    <div class="mini-card">
+                        <div class="section-title">Summary</div>
+                        <div class="summary">${data.summary}</div>
+                    </div>
+                </div>
+
+                <div class="grid">
+                    <div class="mini-card">
+                        <div class="section-title">Suggestions</div>
+                        <ul>${suggestionsHTML}</ul>
+                    </div>
+                    <div class="mini-card">
+                        <div class="section-title">Resume Evidence</div>
+                        <div class="evidence-block">${evidenceHTML}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        status.innerHTML = "";
+    } catch (error) {
+        status.innerHTML = '<div class="error">Something went wrong. Make sure the FastAPI server is running on port 8000.</div>';
+        result.innerHTML = "";
+    }
+}
+
+function renderBar(label, value) {
+    return `
+        <div class="bar-label">
+            <span>${label}</span>
+            <span>${value}%</span>
+        </div>
+        <div class="bar"><div style="width:${value}%"></div></div>
+    `;
+}
+</script>
+</body>
+</html>
