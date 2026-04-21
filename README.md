@@ -4,6 +4,12 @@ A resume-job matching system that evaluates alignment based on **weighted skill 
 
 ---
 
+## 📸 Demo
+
+![demo](demo.png)
+
+---
+
 ## 🚀 Features
 
 - 📊 Weighted skill matching (not just keyword overlap)
